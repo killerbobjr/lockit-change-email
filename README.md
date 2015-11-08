@@ -1,8 +1,8 @@
 # Lockit change email
 
-[![Build Status](https://travis-ci.org/killerbobjr/lockit-change-email.svg?branch=master)](https://travis-ci.org/zemirco/lockit-change-email)
+[![Build Status](https://travis-ci.org/killerbobjr/lockit-change-email.svg?branch=master)](https://travis-ci.org/killerbobjr/lockit-change-email)
 [![NPM version](https://badge.fury.io/js/lockit-change-email.svg)](http://badge.fury.io/js/lockit-change-email)
-[![Dependency Status](https://david-dm.org/killerbobjr/lockit-change-email.svg)](https://david-dm.org/zemirco/lockit-change-email)
+[![Dependency Status](https://david-dm.org/killerbobjr/lockit-change-email.svg)](https://david-dm.org/killerbobjr/lockit-change-email)
 
 Supplies validation for changing email addresses for your Express app. The module is part of [Lockit](https://github.com/killerbobjr/lockit).
 
