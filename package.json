@@ -25,7 +25,7 @@
     "lockit-sendmail": "git://github.com/killerbobjr/lockit-sendmail.git",
     "moment": "^2.8.3",
     "ms": "^0.6.2",
-    "shortid": "^2.2.2"
+    "shortid": "git://github.com/killerbobjr/shortid.git"
   },
   "devDependencies": {
     "body-parser": "^1.9.0",
@@ -41,7 +41,7 @@
     "grunt-mocha-test": "^0.12.0",
     "jade": "^1.7.0",
     "lockit-couchdb-adapter": "^0.5.0",
-    "lockit-template-blank": "~0.0.1",
+    "lockit-template-blank": "git://github.com/killerbobjr/lockit-template-blank.git",
     "lockit-utils": "^0.5.1",
     "mocha": "^1.21.4",
     "nano": "^5.11.2",
