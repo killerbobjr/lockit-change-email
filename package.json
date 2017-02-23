@@ -42,7 +42,7 @@
     "jade": "^1.7.0",
     "lockit-couchdb-adapter": "^0.5.0",
     "lockit-template-blank": "git://github.com/killerbobjr/lockit-template-blank.git",
-    "lockit-utils": "^0.5.1",
+    "lockit-utils": "git://github.com/killerbobjr/lockit-utils.git",
     "mocha": "^1.21.4",
     "nano": "^5.11.2",
     "nodemailer-stub-transport": "^0.1.4",
