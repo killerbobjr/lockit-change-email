@@ -97,7 +97,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	var config = this.config;
 	var adapter = this.adapter;
 	var that = this;
-	var email = req.session.email;
+	var email = req.user?req.user.email || '':'';
 	var newemail = req.body.email;
 	var password = req.body.password;
 
