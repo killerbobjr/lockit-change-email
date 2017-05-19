@@ -335,7 +335,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 											// send email with change email link
 											var mail = new Mail(config);
 											
-											mail.change(user.name, newemail, token, function(err, response)
+											mail.change(user.name, user.email, token, function(err, response)
 												{
 													if(err)
 														return next(err);
@@ -383,7 +383,9 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 
 	// if format is wrong no need to query the database
 	if(!uuid.isValid(token))
-		return next();
+	{
+		return next({message:'Invalid token'});
+	}
 
 	// check if we have a user with that token
 	adapter.find('emlChangeToken', token, function(err, user)
@@ -445,7 +447,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							delete user.emlResetToken;
 							delete user.emlResetTokenExpires;
 							
-							// save new email
+							// save old email
 							user.email = user.oldEmail;
 							delete user.oldEmail;
 							
