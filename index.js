@@ -159,6 +159,14 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 
 	// looks like given email address has the correct format
 
+
+	// Custom for our app
+	var	basequery = {};
+	if(res.locals && res.locals.basequery)
+	{
+		basequery = res.locals.basequery;
+	}
+
 	// look for any account using new email
 	adapter.find('email', newemail, function(err, user)
 		{
@@ -358,9 +366,9 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 										});
 								});
 						}
-					});
+					}, basequery);
 			}
-		});
+		}, basequery);
 };
 
 
@@ -385,6 +393,14 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 	if(!uuid.isValid(token))
 	{
 		return next({message:'Invalid token'});
+	}
+
+
+	// Custom for our app
+	var	basequery = {};
+	if(res.locals && res.locals.basequery)
+	{
+		basequery = res.locals.basequery;
 	}
 
 	// check if we have a user with that token
@@ -475,7 +491,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										});
 								});
 						}
-					});
+					}, basequery);
 			}
 			// check if token has expired
 			else if(new Date(user.emlChangeTokenExpires) < new Date())
@@ -569,5 +585,5 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							});
 					});
 			}
-		});
+		}, basequery);
 };
