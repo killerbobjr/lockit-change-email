@@ -42,6 +42,8 @@ var ChangeEmail = module.exports = function(config, adapter)
 	if(config.rest) 
 		route = '/rest' + route;
 
+	uuid.characters();
+
 	/**
 	 * Routes
 	 */
@@ -98,6 +100,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	var adapter = this.adapter;
 	var that = this;
 	var email = req.user?req.user.email || '':'';
+	var name = req.user?req.user.name || '':'';
 	var newemail = req.body.email;
 	var password = req.body.password;
 
@@ -174,7 +177,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				return next(err);
 			else if(user)
 			{
-				error = 'That email is already used by another account';
+				error = 'That email is already in use';
 				// send only JSON when REST is active
 				if(config.rest)
 					return res.json(403,
@@ -199,7 +202,21 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 			{
 				debug('get current user');
 				// get current user
-				adapter.find('email', email, function(err, user)
+				var	field,
+					value;
+				if(email.length > 0)
+				{
+					field = 'email';
+					value = email;
+					delete basequery.name;
+				}
+				else
+				{
+					field = 'name';
+					value = name;
+					delete basequery.email;
+				}
+				adapter.find(field, value, function(err, user)
 					{
 						if(err)
 							return next(err);
@@ -230,7 +247,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 									});
 								return;
 							}
-							else if(!user.emailVerified)
+							else if(user.email.length && !user.emailVerified)
 							{
 								error = 'Your current email has not been verified';
 								// send only JSON when REST is active
@@ -342,8 +359,19 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 
 											// send email with change email link
 											var mail = new Mail(config);
+											var emailto;
+											if(user.email.length)
+											{
+												// Validate previous email
+												emailto = user.email;
+											}
+											else
+											{
+												// Validate new email
+												emailto = newemail;
+											}
 											
-											mail.change(user.name, user.email, token, function(err, response)
+											mail.change(user.name, emailto, token, function(err, response)
 												{
 													if(err)
 														return next(err);
@@ -412,6 +440,8 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 			// if no user is found, check for reset
 			else if(!user)
 			{
+				delete basequery.emlChangeToken;
+
 				// check if the token is for resetting back to the old email
 				adapter.find('emlResetToken', token, function(err, user)
 					{
@@ -533,7 +563,14 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 				delete user.emlChangeTokenExpires;
 				
 				// save new email
-				user.oldEmail = user.email;
+				if(user.email.length)
+				{
+					user.oldEmail = user.email;
+				}
+				else
+				{
+					delete user.oldEmail;
+				}
 				user.email = user.newEmail;
 				delete user.newEmail;
 				
@@ -543,46 +580,69 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 						if(err)
 							return next(err);
 
-						// send link for resetting back to old email
-						var token = uuid.generate();
-						user.emlResetToken = token;
+						if(user.oldEmail && user.oldEmail.length)
+						{
+							// send link for resetting back to old email
+							var token = uuid.generate();
+							user.emlResetToken = token;
 
-						// set expiration date for email reset token
-						var timespan = ms(config.changeEmail.tokenExpirationOfReset);
-						user.emlResetTokenExpires = moment().add(timespan, 'ms').toDate();
+							// set expiration date for email reset token
+							var timespan = ms(config.changeEmail.tokenExpirationOfReset);
+							user.emlResetTokenExpires = moment().add(timespan, 'ms').toDate();
 
-						// update user in db
-						adapter.update(user, function(err, user)
-							{
-								if(err)
-									return next(err);
+							// update user in db
+							adapter.update(user, function(err, user)
+								{
+									if(err)
+										return next(err);
 
-								// send email with change email link
-								var mail = new Mail(config);
-								
-								mail.reset(user.name, user.oldEmail, token, function(err, response)
-									{
-										if(err)
-											return next(err);
+									// send email with change email link
+									var mail = new Mail(config);
+									
+									mail.reset(user.name, user.oldEmail, token, function(err, response)
+										{
+											if(err)
+												return next(err);
 
-										// emit event
-										that.emit('change::success', user, res);
+											// emit event
+											that.emit('change::success', user, res);
 
-										// send only JSON when REST is active
-										if(config.rest)
-											return res.send(204);
+											// send only JSON when REST is active
+											if(config.rest)
+												return res.send(204);
 
-										// custom or built-in view
-										var view = config.changeEmail.views.changedEmail || join('change-email-success');
+											// custom or built-in view
+											var view = config.changeEmail.views.changedEmail || join('change-email-success');
 
-										// render success message
-										res.render(view,
-											{
-												title: 'Email changed',
-												basedir: req.app.get('views')
-											});
-									});
-							});
+											// render success message
+											res.render(view,
+												{
+													title: 'Email changed',
+													basedir: req.app.get('views')
+												});
+										});
+								});
+						}
+						else
+						{
+							// Success!
+							// emit event
+							that.emit('change::success', user, res);
+
+							// send only JSON when REST is active
+							if(config.rest)
+								return res.send(204);
+
+							// custom or built-in view
+							var view = config.changeEmail.views.changedEmail || join('change-email-success');
+
+							// render success message
+							res.render(view,
+								{
+									title: 'Email changed',
+									basedir: req.app.get('views')
+								});
+						}
 					});
 			}
 		}, basequery);
