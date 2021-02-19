@@ -23,25 +23,20 @@ var ChangeEmail = module.exports = function(cfg, adapter)
 		return new ChangeEmail(cfg, adapter);
 	}
 
-	this.config = cfg.changeEmail;
-	this.config.failedLoginAttempts = cfg.failedLoginAttempts;
-	this.config.accountLockedTime = cfg.accountLockedTime;
-	this.config.failedLoginsWarning = cfg.failedLoginsWarning;
-	this.config.mail = cfg;
+	this.config = cfg;
 	this.adapter = adapter;
-
 	var	config = this.config;
 
 	// call super constructor function
 	events.EventEmitter.call(this);
 
 	// set default route
-	var route = config.route || '/changeemail';
+	var route = config.changeEmail.route || '/changeemail';
 
 	// add prefix when rest is active
-	if(config.rest) 
+	if(config.rest)
 	{
-		route = '/' + config.rest + route;
+		route = '/' + config.rest.route + route;
 	}
 
 	uuid.characters();
@@ -74,9 +69,9 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 {
 	var	config = this.config;
 
-	this.emit((config.eventmsg || config.route), err, view, user, res);
+	this.emit((config.changeEmail.eventMessage || 'ChangeEmail'), err, view, user, res);
 	
-	if(config.handleResponse)
+	if(config.changeEmail.handleResponse)
 	{
 		// do not handle the route when REST is active
 		if(config.rest)
@@ -94,7 +89,7 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 		{
 			// custom or built-in view
 			var	resp = {
-					title: config.title || 'Change email',
+					title: config.changeEmail.title || 'Change email',
 					basedir: req.app.get('views')
 				};
 				
@@ -132,7 +127,7 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 ChangeEmail.prototype.getChange = function(req, res, next)
 {
 	var	config = this.config;
-	this.sendResponse(undefined, config.views.changeEmail, undefined, {result:true}, req, res, next);
+	this.sendResponse(undefined, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
 };
 
 
@@ -167,11 +162,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	// check for valid input
 	if(!newemail || !checkEmail(newemail))
 	{
-		this.sendResponse({message:'The email is invalid'}, config.views.changeEmail, undefined, {result:true}, req, res, next);
+		this.sendResponse({message:'The email is invalid'}, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
 	}
 	else if(!password)
 	{
-		this.sendResponse({message:'Please enter your password'}, config.views.changeEmail, undefined, {result:true}, req, res, next);
+		this.sendResponse({message:'Please enter your password'}, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
 	}
 	else
 	{
@@ -193,7 +188,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				}
 				else if(user)
 				{
-					that.sendResponse({message:'That email is already in use'}, config.views.changeEmail, user, {result:true}, req, res, next);
+					that.sendResponse({message:'That email is already in use'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
 				}
 				else
 				{
@@ -225,11 +220,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 								
 								if(user.accountInvalid)
 								{
-									that.sendResponse({message:'Your current account is invalid'}, config.views.changeEmail, user, {result:true}, req, res, next);
+									that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
 								}
 								else if(user.email.length && !user.emailVerified)
 								{
-									that.sendResponse({message:'Your current email has not been verified'}, config.views.changeEmail, user, {result:true}, req, res, next);
+									that.sendResponse({message:'Your current email has not been verified'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
 								}
 								else
 								{
@@ -284,7 +279,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 														}
 														else
 														{
-															that.sendResponse({message:errorMessage}, config.views.changeEmail, user, {result:true}, req, res, next);
+															that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
 														}
 													});
 											}
@@ -302,7 +297,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 												user.emlChangeToken = token;
 
 												// set expiration date for email reset token
-												timespan = ms(config.tokenExpiration);
+												timespan = ms(config.changeEmail.tokenExpiration);
 												user.emlChangeTokenExpires = moment().add(timespan, 'ms').toDate();
 
 												// update user in db
@@ -315,7 +310,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 														else
 														{
 															// send email with change email link
-															var	mail = new Mail(config.mail),
+															var	mail = new Mail(config),
 																emailto;
 
 															if(user.email.length)
@@ -333,11 +328,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 																{
 																	if(err)
 																	{
-																		next(err);
+																		that.sendResponse(err, config.changeEmail.views.route, user, {result:true}, req, res, next);
 																	}
 																	else
 																	{
-																		that.sendResponse(undefined, config.views.sentEmail, user, {result:true}, req, res, next);
+																		that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {result:true}, req, res, next);
 																	}
 																});
 														}
@@ -404,7 +399,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							// if no user is found forward to error handling middleware
 							else if(!user)
 							{
-								that.sendResponse({message:'That link is invalid'}, config.views.resetExpired, user, {result:true}, req, res, next);
+								that.sendResponse({message:'That link is invalid'}, config.changeEmail.views.resetExpired, user, {result:true}, req, res, next);
 							}
 							// check if token has expired
 							else if(new Date(user.emlResetTokenExpires) < new Date())
@@ -424,7 +419,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										}
 										else
 										{
-											that.sendResponse({message:'The link has expired'}, config.views.linkExpired, user, {result:true}, req, res, next);
+											that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {result:true}, req, res, next);
 										}
 									});
 							}
@@ -448,7 +443,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										else
 										{
 											// Success!
-											that.sendResponse(undefined, config.views.changedEmail, user, {result:true}, req, res, next);
+											that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
 										}
 									});
 							}
@@ -472,7 +467,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							}
 							else
 							{
-								that.sendResponse({message:'The link has expired'}, config.views.linkExpired, user, {result:true}, req, res, next);
+								that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {result:true}, req, res, next);
 							}
 						});
 				}
@@ -508,7 +503,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 								user.emlResetToken = token;
 
 								// set expiration date for email reset token
-								var timespan = ms(config.tokenExpirationOfReset);
+								var timespan = ms(config.changeEmail.tokenExpirationOfReset);
 								user.emlResetTokenExpires = moment().add(timespan, 'ms').toDate();
 
 								// update user in db
@@ -521,18 +516,18 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										else
 										{
 											// send email with change email link
-											var mail = new Mail(config.mail);
+											var mail = new Mail(config);
 											
 											mail.reset(user.name, user.oldEmail, token, function(err, response)
 												{
 													if(err)
 													{
-														next(err);
+														that.sendResponse(err, config.changeEmail.views.route, user, {result:true}, req, res, next);
 													}
 													else
 													{
 														// Success!
-														that.sendResponse(undefined, config.views.changedEmail, user, {result:true}, req, res, next);
+														that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
 													}
 												});
 										}
@@ -541,7 +536,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							else
 							{
 								// Success!
-								that.sendResponse(undefined, config.views.changedEmail, user, {result:true}, req, res, next);
+								that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
 							}
 						});
 				}
