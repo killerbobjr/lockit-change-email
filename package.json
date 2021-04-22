@@ -1,7 +1,7 @@
 {
   "name": "lockit-change-email",
   "version": "0.1.0",
-  "description": "change email middleware for lockit",
+  "description": "change email middleware for lockit, legacy version",
   "main": "index.js",
   "scripts": {
     "test": "grunt"
@@ -24,7 +24,7 @@
     "couch-pwd": "git://github.com/zemirco/couch-pwd.git",
     "debug": "^4.1.1",
     "express": "^4.17.1",
-    "lockit-sendmail": "git://github.com/killerbobjr/lockit-sendmail.git",
+    "lockit-sendmail": "git://github.com/killerbobjr/lockit-sendmail.git#legacy",
     "moment": "^2.24.0",
     "ms": "^2.1.2",
     "shortid": "git://github.com/killerbobjr/shortid.git"
@@ -40,9 +40,9 @@
     "grunt-contrib-jshint": "^2.1.0",
     "grunt-mocha-test": "^0.13.3",
     "pug": "^2.0.4",
-    "lockit-couchdb-adapter": "git://github.com/killerbobjr/lockit-couchdb-adapter.git",
-    "lockit-template-blank": "git://github.com/killerbobjr/lockit-template-blank.git",
-    "lockit-utils": "git://github.com/killerbobjr/lockit-utilities.git",
+    "lockit-couchdb-adapter": "git://github.com/killerbobjr/lockit-couchdb-adapter.git#legacy",
+    "lockit-template-blank": "git://github.com/killerbobjr/lockit-template-blank.git#legacy",
+    "lockit-utils": "git://github.com/killerbobjr/lockit-utilities.git#legacy",
     "mocha": "^6.2.0",
     "nano": "^8.1.0",
     "nodemailer-stub-transport": "^1.1.0",
