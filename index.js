@@ -74,14 +74,24 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 	if(config.changeEmail.handleResponse)
 	{
 		// do not handle the route when REST is active
-		if(config.rest)
+		if(config.rest || req.query.rest)
 		{
 			if(err)
 			{
-				res.status(403).json(err);
+				// Duplicate to make it easy for REST
+				// response handlers to detect
+				if(!err.error)
+				{
+					err.error = err.message;
+				}
+				res.json(err);
 			}
 			else
 			{
+				if(redirect)
+				{
+					json.redirect = redirect;
+				}
 				res.json(json);
 			}
 		}
@@ -127,7 +137,7 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 ChangeEmail.prototype.getChange = function(req, res, next)
 {
 	var	config = this.config;
-	this.sendResponse(undefined, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
+	this.sendResponse(undefined, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
 };
 
 
@@ -162,11 +172,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	// check for valid input
 	if(!newemail || !checkEmail(newemail))
 	{
-		this.sendResponse({message:'The email is invalid'}, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
+		this.sendResponse({message:'The email is invalid'}, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
 	}
 	else if(!password)
 	{
-		this.sendResponse({message:'Please enter your password'}, config.changeEmail.views.changeEmail, undefined, {result:true}, req, res, next);
+		this.sendResponse({message:'Please enter your password'}, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
 	}
 	else
 	{
@@ -188,7 +198,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				}
 				else if(user)
 				{
-					that.sendResponse({message:'That email is already in use'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
+					that.sendResponse({message:'That email is already in use'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 				}
 				else
 				{
@@ -220,11 +230,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 								
 								if(user.accountInvalid)
 								{
-									that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
+									that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 								}
 								else if(user.email.length && !user.emailVerified)
 								{
-									that.sendResponse({message:'Your current email has not been verified'}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
+									that.sendResponse({message:'Your current email has not been verified'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 								}
 								else
 								{
@@ -279,7 +289,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 														}
 														else
 														{
-															that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {result:true}, req, res, next);
+															that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 														}
 													});
 											}
@@ -328,11 +338,11 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 																{
 																	if(err)
 																	{
-																		that.sendResponse(err, config.changeEmail.views.route, user, {result:true}, req, res, next);
+																		that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 																	}
 																	else
 																	{
-																		that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {result:true}, req, res, next);
+																		that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {view:'sentEmail'}, req, res, next);
 																	}
 																});
 														}
@@ -399,7 +409,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							// if no user is found forward to error handling middleware
 							else if(!user)
 							{
-								that.sendResponse({message:'That link is invalid'}, config.changeEmail.views.resetExpired, user, {result:true}, req, res, next);
+								that.sendResponse({message:'That link is invalid'}, config.changeEmail.views.resetExpired, user, {view:'resetExpired'}, req, res, next);
 							}
 							// check if token has expired
 							else if(new Date(user.emlResetTokenExpires) < new Date())
@@ -419,7 +429,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										}
 										else
 										{
-											that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {result:true}, req, res, next);
+											that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {view:'linkExpired'}, req, res, next);
 										}
 									});
 							}
@@ -443,7 +453,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										else
 										{
 											// Success!
-											that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
+											that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
 										}
 									});
 							}
@@ -467,7 +477,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							}
 							else
 							{
-								that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {result:true}, req, res, next);
+								that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {view:'linkExpired'}, req, res, next);
 							}
 						});
 				}
@@ -522,12 +532,12 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 												{
 													if(err)
 													{
-														that.sendResponse(err, config.changeEmail.views.route, user, {result:true}, req, res, next);
+														that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
 													}
 													else
 													{
 														// Success!
-														that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
+														that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
 													}
 												});
 										}
@@ -536,7 +546,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							else
 							{
 								// Success!
-								that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {result:true}, req, res, next);
+								that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
 							}
 						});
 				}
