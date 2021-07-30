@@ -31,23 +31,23 @@ var ChangeEmail = module.exports = function(cfg, adapter)
 	events.EventEmitter.call(this);
 
 	// set default route
-	var route = config.changeEmail.route || '/changeemail';
+	this.route = config.changeEmail.route || '/changeemail';
 
-	// add prefix when rest is active
-	if(config.rest)
+	this.changeemail = this.route.replace(/\W/g,'');
+	this.title = this.changeemail && this.changeemail[0].toUpperCase() + this.changeemail.slice(1);
+
+	// change URLs if REST is active
+	if (config.rest)
 	{
-		route = '/' + config.rest.route + route;
+		this.route = config.rest.route + this.route;
 	}
 
 	uuid.characters();
 
-	/**
-	 * Routes
-	 */
 	var router = express.Router();
-	router.get(route, this.getChange.bind(this));
-	router.post(route, this.postChange.bind(this));
-	router.get(route + '/:token', this.getToken.bind(this));
+	router.get(this.route, this.getChange.bind(this));
+	router.post(this.route, this.postChange.bind(this));
+	router.get(this.route + '/:token', this.getToken.bind(this));
 	this.router = router;
 };
 
@@ -61,11 +61,12 @@ util.inherits(ChangeEmail, events.EventEmitter);
  * @param {Object} err
  * @param {String} view
  * @param {Object} user
+ * @param {Object} redirect
  * @param {Object} req
  * @param {Object} res
  * @param {Function} next
  */
-ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, next)
+ChangeEmail.prototype.sendResponse = function(err, view, user, json, redirect, req, res, next)
 {
 	var	config = this.config;
 
@@ -99,7 +100,7 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 		{
 			// custom or built-in view
 			var	resp = {
-					title: config.changeEmail.title || 'Change email',
+					title: config.changeEmail.title || this.title,
 					basedir: req.app.get('views')
 				};
 				
@@ -107,11 +108,19 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
 			{
 				resp.error = err.message;
 			}
+			else if(req.query && req.query.error)
+			{
+				resp.error = decodeURIComponent(req.query.error);
+			}
 			
 			if(view)
 			{
 				var	file = path.resolve(path.normalize(resp.basedir + '/' + view));
 				res.render(view, Object.assign(resp, json));
+			}
+			else if(redirect)
+			{
+				res.redirect(redirect);
 			}
 			else
 			{
@@ -136,8 +145,11 @@ ChangeEmail.prototype.sendResponse = function(err, view, user, json, req, res, n
  */
 ChangeEmail.prototype.getChange = function(req, res, next)
 {
-	var	config = this.config;
-	this.sendResponse(undefined, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
+	var	config = this.config,
+		// save redirect url
+		suffix = req.query.redirect ? '?redirect=' + encodeURIComponent(req.query.redirect) : '';
+
+	this.sendResponse(undefined, config.changeEmail.views.changeEmail, undefined, {action:this.route + suffix, view:this.changeemail}, undefined, req, res, next);
 };
 
 
@@ -154,8 +166,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	var	config = this.config,
 		adapter = this.adapter,
 		that = this,
-		email = req.user?req.user.email || '':'',
-		name = req.user?req.user.name || '':'',
+		name = req.body.name,
 		newemail = req.body.email,
 		password = req.body.password,
 		error,
@@ -172,15 +183,16 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 	// check for valid input
 	if(!newemail || !checkEmail(newemail))
 	{
-		this.sendResponse({message:'The email is invalid'}, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
+		this.sendResponse({message:'That email is invalid'}, config.changeEmail.views.changeEmail, undefined, {view:this.changeemail}, undefined, req, res, next);
 	}
 	else if(!password)
 	{
-		this.sendResponse({message:'Please enter your password'}, config.changeEmail.views.changeEmail, undefined, {view:'changeEmail'}, req, res, next);
+		this.sendResponse({message:'Please enter your password'}, config.changeEmail.views.changeEmail, undefined, {view:this.changeemail}, undefined, req, res, next);
 	}
 	else
 	{
-		// looks like given email address has the correct format
+		// Looks like the email address has the correct format
+		// and a password has been provided.
 
 		// Custom for our app
 		var	basequery = {};
@@ -189,8 +201,8 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 			basequery = res.locals.basequery;
 		}
 
-		// look for any account using new email
-		adapter.find('email', newemail, function(err, user)
+		// Get the user record
+		adapter.find('name', name, function(err, user)
 			{
 				if(err)
 				{
@@ -198,160 +210,135 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				}
 				else if(user)
 				{
-					that.sendResponse({message:'That email is already in use'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
-				}
-				else
-				{
-					debug('get current user');
-					// get current user
-					var	field,
-						value;
-					if(email.length > 0)
+					debug('found current user');
+					
+					if(user.accountInvalid)
 					{
-						field = 'email';
-						value = email;
-						delete basequery.name;
+						that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+					}
+					else if(!user.emailVerified)
+					{
+						// Signup email has not been verified. Load the signup verification route.
+						that.sendResponse(undefined, undefined, user, {view:'resend'}, config.signup.resendRoute, req, res, next);
 					}
 					else
 					{
-						field = 'name';
-						value = name;
-						delete basequery.email;
-					}
-					adapter.find(field, value, function(err, user)
+						var timespan;
+						
+						// if user comes from couchdb it has an 'iterations' key
+						if(user.iterations)
 						{
-							if(err)
+							pwd.iterations(user.iterations);
+						}
+
+						debug('compare credentials with data in db');
+
+						// compare credentials with data in db
+						pwd.hash(password, user.salt, function(err, hash)
 							{
-								next(err);
-							}
-							else if(user)
-							{
-								debug('found current user');
-								
-								if(user.accountInvalid)
+								if(err)
 								{
-									that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
+									next(err);
 								}
-								else if(user.email.length && !user.emailVerified)
+								else if(hash !== user.derived_key)
 								{
-									that.sendResponse({message:'Your current email has not been verified'}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
-								}
-								else
-								{
-									var timespan;
-									
-									// if user comes from couchdb it has an 'iterations' key
-									if(user.iterations)
+									// set the default error message
+									var errorMessage = 'Invalid password';
+
+									// increase failed login attempts
+									user.failedLoginAttempts += 1;
+
+									// lock account on too many login attempts (defaults to 5)
+									if(user.failedLoginAttempts >= config.failedLoginAttempts)
 									{
-										pwd.iterations(user.iterations);
+										user.accountLocked = true;
+
+										// set locked time to 20 minutes (default value)
+										timespan = ms(config.accountLockedTime);
+										user.accountLockedUntil = moment().add(timespan, 'ms').toDate();
+
+										errorMessage = 'Invalid password. Your account is now locked for ' + config.accountLockedTime;
+									}
+									else if(user.failedLoginAttempts >= config.failedLoginsWarning)
+									{
+										// show a warning after 3 (default setting) failed login attempts
+										errorMessage = 'Invalid password. Your account will be locked soon.';
 									}
 
-									debug('compare credentials with data in db');
-
-									// compare credentials with data in db
-									pwd.hash(password, user.salt, function(err, hash)
+									// save user to db
+									adapter.update(user, function(err, user)
 										{
 											if(err)
 											{
 												next(err);
 											}
-											else if(hash !== user.derived_key)
+											else
 											{
-												// set the default error message
-												var errorMessage = 'Invalid password';
+												that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+											}
+										});
+								}
+								else
+								{
+									// looks like password is correct
+									debug('looks like password is correct');
+									
+									// user found in db
+									user.newEmail = newemail;
+									
+									// do not change email until verified
+									// send link for verifying new email
+									var token = uuid.generate();
+									user.emlChangeToken = token;
 
-												// increase failed login attempts
-												user.failedLoginAttempts += 1;
+									// set expiration date for email reset token
+									timespan = ms(config.changeEmail.tokenExpiration);
+									user.emlChangeTokenExpires = moment().add(timespan, 'ms').toDate();
 
-												// lock account on too many login attempts (defaults to 5)
-												if(user.failedLoginAttempts >= config.failedLoginAttempts)
-												{
-													user.accountLocked = true;
-
-													// set locked time to 20 minutes (default value)
-													timespan = ms(config.accountLockedTime);
-													user.accountLockedUntil = moment().add(timespan, 'ms').toDate();
-
-													errorMessage = 'Invalid password. Your account is now locked for ' + config.accountLockedTime;
-												}
-												else if(user.failedLoginAttempts >= config.failedLoginsWarning)
-												{
-													// show a warning after 3 (default setting) failed login attempts
-													errorMessage = 'Invalid password. Your account will be locked soon.';
-												}
-
-												// save user to db
-												adapter.update(user, function(err, user)
-													{
-														if(err)
-														{
-															next(err);
-														}
-														else
-														{
-															that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
-														}
-													});
+									// update user in db
+									adapter.update(user, function(err, user)
+										{
+											if(err)
+											{
+												next(err);
 											}
 											else
 											{
-												// looks like password is correct
-												debug('looks like password is correct');
-												
-												// user found in db
-												user.newEmail = newemail;
-												
-												// do not change email until verified
-												// send link for verifying new email
-												var token = uuid.generate();
-												user.emlChangeToken = token;
+												// send email with change email link
+												var	mail = new Mail(config),
+													emailto;
 
-												// set expiration date for email reset token
-												timespan = ms(config.changeEmail.tokenExpiration);
-												user.emlChangeTokenExpires = moment().add(timespan, 'ms').toDate();
-
-												// update user in db
-												adapter.update(user, function(err, user)
+												if(user.email.length)
+												{
+													// Validate previous email
+													emailto = user.email;
+												}
+												else
+												{
+													// Validate new email
+													emailto = newemail;
+												}
+												
+												mail.change(user.name, emailto, token, function(err, response)
 													{
 														if(err)
 														{
-															next(err);
+															that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
 														}
 														else
 														{
-															// send email with change email link
-															var	mail = new Mail(config),
-																emailto;
-
-															if(user.email.length)
-															{
-																// Validate previous email
-																emailto = user.email;
-															}
-															else
-															{
-																// Validate new email
-																emailto = newemail;
-															}
-															
-															mail.change(user.name, emailto, token, function(err, response)
-																{
-																	if(err)
-																	{
-																		that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
-																	}
-																	else
-																	{
-																		that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {view:'sentEmail'}, req, res, next);
-																	}
-																});
+															that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {view:'sentEmail'}, undefined, req, res, next);
 														}
 													});
 											}
 										});
 								}
-							}
-						}, basequery);
+							});
+					}
+				}
+				else
+				{
+					that.sendResponse({message:'User name not found'}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
 				}
 			}, basequery);
 	}
@@ -409,7 +396,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							// if no user is found forward to error handling middleware
 							else if(!user)
 							{
-								that.sendResponse({message:'That link is invalid'}, config.changeEmail.views.resetExpired, user, {view:'resetExpired'}, req, res, next);
+								that.sendResponse({message:'That code is invalid'}, config.changeEmail.views.resetExpired, user, {view:'resetExpired'}, undefined, req, res, next);
 							}
 							// check if token has expired
 							else if(new Date(user.emlResetTokenExpires) < new Date())
@@ -429,7 +416,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										}
 										else
 										{
-											that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {view:'linkExpired'}, req, res, next);
+											that.sendResponse({message:'That code has expired'}, config.changeEmail.views.resetExpired, user, {view:'resetExpired'}, undefined, req, res, next);
 										}
 									});
 							}
@@ -453,7 +440,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										else
 										{
 											// Success!
-											that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
+											that.sendResponse(undefined, config.changeEmail.views.resetEmail, user, {view:'resetEmail'}, undefined, req, res, next);
 										}
 									});
 							}
@@ -477,7 +464,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							}
 							else
 							{
-								that.sendResponse({message:'The link has expired'}, config.changeEmail.views.linkExpired, user, {view:'linkExpired'}, req, res, next);
+								that.sendResponse({message:'That reset has expired'}, config.changeEmail.views.resetExpired, user, {view:'resetExpired'}, undefined, req, res, next);
 							}
 						});
 				}
@@ -498,6 +485,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 					}
 					user.email = user.newEmail;
 					delete user.newEmail;
+					user.emailVerified = false;
 					
 					// update user in db
 					adapter.update(user, function(err, user)
@@ -532,12 +520,12 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 												{
 													if(err)
 													{
-														that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:'changeEmail'}, req, res, next);
+														that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
 													}
 													else
 													{
 														// Success!
-														that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
+														that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, undefined, req, res, next);
 													}
 												});
 										}
@@ -546,7 +534,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							else
 							{
 								// Success!
-								that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, req, res, next);
+								that.sendResponse(undefined, config.changeEmail.views.changedEmail, user, {view:'changedEmail'}, undefined, req, res, next);
 							}
 						});
 				}
