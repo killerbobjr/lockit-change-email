@@ -214,7 +214,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 					
 					if(user.accountInvalid)
 					{
-						that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+						that.sendResponse({message:'Your current account is invalid'}, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 					}
 					else if(!user.emailVerified)
 					{
@@ -274,7 +274,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 											}
 											else
 											{
-												that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+												that.sendResponse({message:errorMessage}, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 											}
 										});
 								}
@@ -323,7 +323,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 													{
 														if(err)
 														{
-															that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+															that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 														}
 														else
 														{
@@ -338,7 +338,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				}
 				else
 				{
-					that.sendResponse({message:'User name not found'}, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+					that.sendResponse({message:'User name not found'}, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 				}
 			}, basequery);
 	}
@@ -520,7 +520,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 												{
 													if(err)
 													{
-														that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:this.changeemail}, undefined, req, res, next);
+														that.sendResponse(err, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 													}
 													else
 													{
