@@ -327,7 +327,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 														}
 														else
 														{
-															that.sendResponse(undefined, config.changeEmail.views.sentEmail, user, {view:'sentEmail'}, undefined, req, res, next);
+															that.sendResponse(undefined, config.changeEmail.views.sentChangeEmail, user, {view:'sentChangeEmail'}, undefined, req, res, next);
 														}
 													});
 											}
