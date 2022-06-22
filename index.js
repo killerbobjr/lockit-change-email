@@ -202,7 +202,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 		}
 
 		// Get the user record
-		adapter.find('name', name, function(err, user)
+		adapter.find('name', name, basequery, function(err, user)
 			{
 				if(err)
 				{
@@ -340,7 +340,7 @@ ChangeEmail.prototype.postChange = function(req, res, next)
 				{
 					that.sendResponse({message:'User name not found'}, config.changeEmail.views.changeEmail, user, {view:that.changeemail}, undefined, req, res, next);
 				}
-			}, basequery);
+			});
 	}
 };
 
@@ -375,7 +375,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 		}
 
 		// check if we have a user with that token
-		adapter.find('emlChangeToken', token, function(err, user)
+		adapter.find('emlChangeToken', token, basequery, function(err, user)
 			{
 				if(err)
 				{
@@ -387,7 +387,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 					delete basequery.emlChangeToken;
 
 					// check if the token is for resetting back to the old email
-					adapter.find('emlResetToken', token, function(err, user)
+					adapter.find('emlResetToken', token, basequery, function(err, user)
 						{
 							if(err)
 							{
@@ -444,7 +444,7 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 										}
 									});
 							}
-						}, basequery);
+						});
 				}
 				// check if token has expired
 				else if(new Date(user.emlChangeTokenExpires) < new Date())
@@ -538,6 +538,6 @@ ChangeEmail.prototype.getToken = function(req, res, next)
 							}
 						});
 				}
-			}, basequery);
+			});
 	}
 };
