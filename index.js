@@ -8,6 +8,7 @@ var	path = require('path'),
 	ms = require('ms'),
 	moment = require('moment'),
 	Mail = require('lockit-sendmail'),
+	utils = require('lockit-utils'),
 	debug = require('debug')('lockit');
 
 /**
@@ -45,8 +46,8 @@ var ChangeEmail = module.exports = function(cfg, adapter)
 	uuid.characters();
 
 	var router = express.Router();
-	router.get(this.route, this.getChange.bind(this));
-	router.post(this.route, this.postChange.bind(this));
+	router.get(this.route, utils.restrict(this.config), this.getChange.bind(this));
+	router.post(this.route, utils.restrict(this.config), this.postChange.bind(this));
 	router.get(this.route + '/:token', this.getToken.bind(this));
 	this.router = router;
 };
